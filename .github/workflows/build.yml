@@ -18,7 +18,7 @@ jobs:
       - name: Compile
         run: |
           mkdir classes
-          javac -source 1.3 -target 1.3 -classpath cldc.jar:midp.jar -d classes src/*.javacp src/*.png classes/
+          javac -source 1.3 -target 1.3 -classpath cldc.jar:midp.jar -d classes src/*.java
           cp src/*.png classes/
       - name: Package
         run: |
