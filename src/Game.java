@@ -300,4 +300,174 @@ class GameScreen extends GameCanvas implements Runnable {
         }
 
         // enemies: continuous chase toward player's exact position from either side
-        for (int i = 0;
+        for (int i = 0; i < MAXEN; i++) {
+            if (!enOn[i]) continue;
+            int speed = (enType[i] == T_CAR) ? 2 : 1;
+            int closeRange = 22;
+            if (enX[i] > wx + closeRange) enX[i] -= speed;
+            else if (enX[i] < wx - closeRange) enX[i] += speed;
+
+            enTimer[i]--;
+            if (enTimer[i] <= 0) {
+                enBurst[i] = !enBurst[i];
+                enTimer[i] = enBurst[i] ? 60 : 100;
+            }
+            if (enBurst[i] && (frame % 12 == 0)) {
+                for (int b = 0; b < MAXEB; b++) {
+                    if (!ebOn[b]) {
+                        ebOn[b] = true;
+                        ebX[b] = enX[i];
+                        ebY[b] = groundY - 14;
+                        ebDX[b] = (enX[i] > wx) ? -1 : 1;
+                        ebDX[b] *= (enType[i] == T_CAR) ? 6 : 4;
+                        break;
+                    }
+                }
+            }
+
+            int dist = Math.abs(enX[i] - wx);
+            if (enType[i] == T_CAR && dist < 20 && mode == MODE_CAR && hitFlash == 0) {
+                php -= 15;
+                hitFlash = 15;
+                if (php <= 0) { php = 0; state = DEAD; deadTimer = 0; }
+            }
+
+            for (int p = 0; p < MAXPB; p++) {
+                if (pbOn[p]) {
+                    int ex = enX[i] - cam;
+                    int psx = pbX[p] - cam;
+                    if (Math.abs(psx - ex) < enW / 2 && pbY[p] > groundY - enH && pbY[p] < groundY + 5) {
+                        pbOn[p] = false;
+                        enHP[i] -= 10;
+                        if (enHP[i] <= 0) enOn[i] = false;
+                    }
+                }
+            }
+        }
+
+        // enemy bullets vs player
+        for (int b = 0; b < MAXEB; b++) {
+            if (ebOn[b]) {
+                ebX[b] += ebDX[b];
+                if (ebX[b] - cam < -20 || ebX[b] - cam > W + 20) { ebOn[b] = false; continue; }
+                int bsx = ebX[b] - cam;
+                int psx = wx - cam;
+                boolean xHit = Math.abs(bsx - (psx + vw / 2)) < vw / 2;
+                boolean yHit = ebY[b] > py - vh && ebY[b] < py + 4;
+                if (xHit && yHit && hitFlash == 0) {
+                    ebOn[b] = false;
+                    php -= 6;
+                    hitFlash = 12;
+                    if (php <= 0) { php = 0; state = DEAD; deadTimer = 0; }
+                }
+            }
+        }
+        if (hitFlash > 0) hitFlash--;
+    }
+
+    void draw(Graphics g) {
+        if (bgImg != null && bgW > 0) {
+            int off = cam % bgW;
+            for (int x = -off; x < W; x += bgW) g.drawImage(bgImg, x, 0, Graphics.TOP | Graphics.LEFT);
+        } else {
+            g.setColor(0x87CEEB);
+            g.fillRect(0, 0, W, H);
+        }
+
+        if (state == TITLE) {
+            g.setColor(0x000000);
+            g.fillRect(W / 2 - 90, H / 2 - 40, 180, 90);
+            g.setColor(0xFFFFFF);
+            g.drawString("WAHID FIRST GAME", W / 2, H / 2 - 34, Graphics.TOP | Graphics.HCENTER);
+            if (((frame >> 3) & 1) == 0) g.drawString("PRESS FIRE TO START", W / 2, H / 2 - 4, Graphics.TOP | Graphics.HCENTER);
+            if (heliLevel != null) g.drawImage(heliLevel, W / 2 - vw / 2, H / 2 + 20, Graphics.TOP | Graphics.LEFT);
+            return;
+        }
+
+        int sx = wx - cam;
+
+        for (int i = 0; i < MAXSMOKE; i++) {
+            if (smAge[i] > 0) {
+                int ssx = smX[i] - cam - smAge[i];
+                int ssy = smY[i] - smAge[i] / 2;
+                int size = 3 + smAge[i] / 3;
+                g.setColor(0xAAAAAA);
+                g.fillArc(ssx - size / 2, ssy - size / 2, size, size, 0, 360);
+            }
+        }
+
+        for (int i = 0; i < MAXEN; i++) {
+            if (!enOn[i]) continue;
+            int ex = enX[i] - cam;
+            Image eimg = (enType[i] == T_SOLDIER) ? soldierImg : armorImg;
+            int ew = (enType[i] == T_SOLDIER) ? enW : enW + 12;
+            int bob = (enType[i] == T_SOLDIER) ? ((frame / 6) % 2 == 0 ? 0 : -2) : 0;
+
+            g.setColor(0x111111);
+            g.fillArc(ex - ew / 2 + 3, groundY - 5, ew - 6, 8, 0, 360);
+            if (eimg != null) {
+                g.drawImage(eimg, ex - ew / 2 - 1, groundY - enH + bob, Graphics.TOP | Graphics.LEFT);
+                g.drawImage(eimg, ex - ew / 2 + 1, groundY - enH + bob, Graphics.TOP | Graphics.LEFT);
+                g.drawImage(eimg, ex - ew / 2, groundY - enH + bob, Graphics.TOP | Graphics.LEFT);
+            } else {
+                g.setColor(0x556B2F);
+                g.fillRect(ex - ew / 2, groundY - enH + bob, ew, enH);
+            }
+            g.setColor(0x000000);
+            g.fillRect(ex - ew / 2, groundY - enH - 6, ew, 4);
+            g.setColor(0xFFC107);
+            int maxhp = (enType[i] == T_SOLDIER) ? 20 : 50;
+            g.fillRect(ex - ew / 2 + 1, groundY - enH - 5, (ew - 2) * enHP[i] / maxhp, 2);
+        }
+
+        g.setColor(0xFF5555);
+        for (int b = 0; b < MAXEB; b++) if (ebOn[b]) g.fillRect(ebX[b] - cam - 2, ebY[b], 4, 3);
+
+        g.setColor(0xFFEB3B);
+        for (int p = 0; p < MAXPB; p++) if (pbOn[p]) g.fillRect(pbX[p] - cam, pbY[p], 5, 3);
+
+        Image img;
+        if (mode == MODE_FLY) img = (tilt > 0) ? heliDown : (tilt < 0) ? heliUp : heliLevel;
+        else img = carImg;
+        int drawY = py - vh;
+
+        g.setColor(0x1A1A1A);
+        g.fillArc(sx + 3, groundY - 5, vw - 6, 8, 0, 360);
+
+        if (img != null) {
+            g.drawImage(img, sx - 1, drawY, Graphics.TOP | Graphics.LEFT);
+            g.drawImage(img, sx + 1, drawY, Graphics.TOP | Graphics.LEFT);
+            g.drawImage(img, sx, drawY - 1, Graphics.TOP | Graphics.LEFT);
+            g.drawImage(img, sx, drawY + 1, Graphics.TOP | Graphics.LEFT);
+            g.drawImage(img, sx, drawY, Graphics.TOP | Graphics.LEFT);
+        } else {
+            g.setColor(0xFF0000);
+            g.fillRect(sx, drawY, vw, vh);
+        }
+
+        if (mode == MODE_FLY) {
+            int bladeY = drawY + 2;
+            int spin = frame % 4;
+            g.setColor(0x333333);
+            if (spin < 2) g.fillRect(sx + 6, bladeY, vw - 4, 2);
+            else g.fillArc(sx + 8, bladeY - 3, vw - 12, 6, 0, 360);
+        }
+
+        g.setColor(0x000000);
+        g.fillRect(2, 2, 74, 10);
+        g.setColor(0xD32F2F);
+        g.fillRect(3, 3, php * 72 / 100, 8);
+        g.setColor(0xFFFFFF);
+        g.drawString(mode == MODE_FLY ? "FLY" : "DRIVE", W - 4, 2, Graphics.TOP | Graphics.RIGHT);
+
+        if (state == DEAD) {
+            g.setColor(0x000000);
+            g.fillRect(W / 2 - 70, H / 2 - 24, 140, 48);
+            g.setColor(0xFFFFFF);
+            g.drawString("YOU DIED", W / 2, H / 2 - 18, Graphics.TOP | Graphics.HCENTER);
+            if (deadTimer > 25 && ((frame >> 3) & 1) == 0) {
+                g.drawString("PRESS FIRE", W / 2, H / 2 + 0, Graphics.TOP | Graphics.HCENTER);
+            }
+        }
+    }
+    }
