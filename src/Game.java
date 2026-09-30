@@ -475,4 +475,72 @@ class GameScreen extends GameCanvas implements Runnable {
         if(bossOn){
             int bx=bossX-cam, topY=groundY-bossH; int rec=(bossRecoil>0)?-2:0;
             g.setColor(0x111111); g.fillArc(bx-bossW/2+4,groundY-6,bossW-8,10,0,360);
-            if(bossImg!=
+            if(bossImg!=null){
+                g.drawImage(bossImg,bx-bossW/2-1+rec,topY,Graphics.TOP|Graphics.LEFT);
+                g.drawImage(bossImg,bx-bossW/2+1+rec,topY,Graphics.TOP|Graphics.LEFT);
+                g.drawImage(bossImg,bx-bossW/2+rec,topY,Graphics.TOP|Graphics.LEFT);
+            } else { g.setColor(0x8B0000); g.fillRect(bx-bossW/2,topY,bossW,bossH); }
+            g.setColor(0x000000); g.fillRect(bx-bossW/2,topY-8,bossW,5);
+            g.setColor(0xD32F2F); g.fillRect(bx-bossW/2+1,topY-7,(bossW-2)*bossHP/300,3);
+        }
+
+        g.setColor(0xFF5555);
+        for(int b=0;b<MAXEB;b++) if(ebOn[b]) g.fillRect(ebX[b]-cam-2,ebY[b],ebHeavy[b]?7:4,ebHeavy[b]?5:3);
+
+        g.setColor(0xFFEB3B);
+        for(int p=0;p<MAXPB;p++) if(pbOn[p]) g.fillRect(pbX[p]-cam,pbY[p],5,3);
+
+        if(bombOn){ g.setColor(0x222222); g.fillArc(bombX-cam-4,bombY-4,8,8,0,360); }
+        if(explOn){
+            int t=10-explTimer;
+            int r=6+t*4;
+            g.setColor(t<2?0xFFFFFF:0xFF7700);
+            g.fillArc(explX-cam-r/2,explY-r/2,r,r,0,360);
+            g.setColor(0x333333);
+            for(int a=0;a<8;a++){
+                int ang=a*45;
+                int dx=(int)(Math.cos(ang*Math.PI/180)*(r/2+4));
+                int dy=(int)(Math.sin(ang*Math.PI/180)*(r/2+4));
+                g.drawLine(explX-cam,explY,explX-cam+dx,explY+dy);
+            }
+        }
+
+        Image img;
+        if(mode==MODE_FLY) img=(tilt>0)?heliDown:(tilt<0)?heliUp:heliLevel;
+        else img=carImg;
+        int drawY=py-vh;
+
+        g.setColor(0x1A1A1A); g.fillArc(sx+3,groundY-5,vw-6,8,0,360);
+
+        if(img!=null){
+            g.drawImage(img,sx-1,drawY,Graphics.TOP|Graphics.LEFT);
+            g.drawImage(img,sx+1,drawY,Graphics.TOP|Graphics.LEFT);
+            g.drawImage(img,sx,drawY-1,Graphics.TOP|Graphics.LEFT);
+            g.drawImage(img,sx,drawY+1,Graphics.TOP|Graphics.LEFT);
+            g.drawImage(img,sx,drawY,Graphics.TOP|Graphics.LEFT);
+        } else { g.setColor(0xFF0000); g.fillRect(sx,drawY,vw,vh); }
+
+        if(mode==MODE_FLY){
+            int bladeY=drawY+2; int spin=frame%4;
+            g.setColor(0x333333);
+            if(spin<2) g.fillRect(sx+6,bladeY,vw-4,2);
+            else g.fillArc(sx+8,bladeY-3,vw-12,6,0,360);
+        }
+
+        g.setColor(0x000000); g.fillRect(2,2,74,10);
+        g.setColor(0xD32F2F); g.fillRect(3,3,php*72/100,8);
+        g.setColor(0xFFFFFF);
+        g.drawString(mode==MODE_FLY?"FLY":"DRIVE",W-4,2,Graphics.TOP|Graphics.RIGHT);
+        String bs = bombOn?"BOMB!":(bombCd>0?("BOMB "+(bombCd/25+1)):"BOMB RDY");
+        g.drawString(bs,4,14,Graphics.TOP|Graphics.LEFT);
+        if(bossSpawned) g.drawString(bossOn?"BOSS!":"CLEARING",W-4,14,Graphics.TOP|Graphics.RIGHT);
+
+        if(state==DEAD || state==WIN){
+            g.setColor(0x000000); g.fillRect(W/2-70,H/2-24,140,48);
+            g.setColor(0xFFFFFF);
+            g.drawString(state==DEAD?"YOU DIED":"YOU WIN!",W/2,H/2-18,Graphics.TOP|Graphics.HCENTER);
+            if(deadTimer>25 && ((frame>>3)&1)==0)
+                g.drawString("PRESS FIRE",W/2,H/2,Graphics.TOP|Graphics.HCENTER);
+        }
+    }
+}
